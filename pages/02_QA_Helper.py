@@ -1,7 +1,7 @@
 import streamlit as st
 
 import common
-from Checkers import ScrapingUrlsSummary, FromFileColumnsChecker, ScrapedColumnChecker
+from data_validators import ScrapingUrlsSummary, FromFileColumnsChecker, ScrapedColumnChecker
 
 proper_filename_prefix = "output_concatenated"
 

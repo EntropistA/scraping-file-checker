@@ -2,7 +2,7 @@ import streamlit as st
 
 import common
 
-from Checkers import ScrapingUrlsSummary, FromFileColumnsChecker
+from data_validators import ScrapingUrlsSummary, FromFileColumnsChecker
 
 proper_filename = "scraping_df.csv"
 
