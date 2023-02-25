@@ -78,7 +78,8 @@ class Checker(ScrapingDataFrame):
             else:
                 is_success = True
                 message = "Success"
-            return ColumnCheckResult(column_name, is_success, message + location_identifier)
+            message += location_identifier if not is_success else ""
+            return ColumnCheckResult(column_name, is_success, message)
 
     def check_all(self) -> Iterator[ColumnCheckResult]:
         for column_name, validation_function in self.columns_and_checkers.items():
