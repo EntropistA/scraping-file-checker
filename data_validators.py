@@ -75,6 +75,8 @@ class Checker(ScrapingDataFrame):
         pass
 
     def get_column_check_result(self, column_name, validation_function) -> ColumnCheckResult:
+        is_success = True
+        message = "Success"
         for row_index, value in enumerate(self.scraping_df[column_name].to_list()):
             location_identifier = f" at index ({row_index}, {column_name})"
             if value != value.strip():
@@ -84,18 +86,32 @@ class Checker(ScrapingDataFrame):
                 # print("debug", value, len(value), bool(validation_function(value)), validation_function)
                 is_success = False
                 message = f"Invalid value: {value}" if value else f"blank field"
-            else:
-                is_success = True
-                message = "Success"
-            message += location_identifier if not is_success else ""
-            return ColumnCheckResult(column_name, is_success, message)
+            if not is_success:
+                message += location_identifier
+                break
+        return ColumnCheckResult(column_name, is_success, message)
+
+    def no_mismatch_between_same_url_rows(self):
+        title = "Mismatch between same URL"
+        for url in set(self.scraping_df["URL"].to_list()):
+            row_with_url = self.scraping_df[self.scraping_df["URL"] == url]
+            if row_with_url.shape[0] > 2:
+                raise NotImplementedError(url)
+            if row_with_url.shape[0] == 2:
+                column_must_match = set(self.scraping_df.columns) - set("Date Time Price_unit Price Name".split())
+                row_with_url = row_with_url[column_must_match]
+                for v1, v2 in zip(row_with_url.iloc[0].to_list(), row_with_url.iloc[1].to_list()):
+                    if v1 != v2:
+                        message = f"{url} '{v1}' != '{v2}'"
+                        yield ColumnCheckResult(column_name=title, is_success=False, message=message)
 
     def check_all(self) -> Iterator[ColumnCheckResult]:
         for column_name, validation_function in self.columns_and_checkers.items():
             yield self.get_column_check_result(column_name, validation_function)
+        yield from self.no_mismatch_between_same_url_rows()
 
 
-class FromFileColumnsChecker(Checker):
+class DatabaseColumnChecker(Checker):
     @staticmethod
     def is_valid_brand(brand: str) -> bool:
         return brand.istitle() and brand in "Dalapro Weber Isover Gyproc".split()
@@ -115,13 +131,8 @@ class FromFileColumnsChecker(Checker):
     def is_valid_competitor(self, competitor: str) -> bool:
         return self._is_valid_text(competitor)
 
-    def is_valid_url(self, url: str) -> bool:
-        row_with_url = self.scraping_df[self.scraping_df["URL"] == url]
-        if row_with_url.shape[0] == 2:
-            column_must_match = self.columns_and_checkers.keys()
-            row_with_url = row_with_url[column_must_match]
-            if row_with_url[0].to_list() != row_with_url[1].to_list():
-                return False
+    @staticmethod
+    def is_valid_url(url: str) -> bool:
         return validators.url(url)
 
     def is_valid_pim_name(self, pim_name: str) -> bool:

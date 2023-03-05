@@ -2,7 +2,7 @@ import streamlit as st
 
 import common
 
-from data_validators import ScrapingUrlsSummary, FromFileColumnsChecker
+from data_validators import ScrapingUrlsSummary, DatabaseColumnChecker
 
 proper_filename_prefix = "scraping_urls"
 proper_filename_suffix = "csv"
@@ -16,9 +16,11 @@ if file:
     st.text(ScrapingUrlsSummary(df).summarize_all())
 
     st.header("File Checks")
-    for column_check_result in FromFileColumnsChecker(df).check_all():
+    database_checker = DatabaseColumnChecker(df)
+    for column_check_result in database_checker.check_all():
         message_header = f"{column_check_result.column_name}: {column_check_result.message}"
         if column_check_result.is_success:
             st.success(message_header, icon="✅")
         else:
             st.warning(message_header, icon="⚠️")
+    database_checker.no_mismatch_between_same_url_rows()
