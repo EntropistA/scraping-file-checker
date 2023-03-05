@@ -4,21 +4,18 @@ import common
 
 from data_validators import ScrapingUrlsSummary, FromFileColumnsChecker
 
-proper_filename = "scraping_df.csv"
-
-st.header(f"Check {proper_filename} before starting scraper")
-file = st.file_uploader(f"Upload {proper_filename}", type=["csv"])
+proper_filename_prefix = "scraping_urls"
+proper_filename_suffix = "csv"
+st.title(f"Check {proper_filename_prefix}.{proper_filename_suffix} before starting scraper")
+file = common.check_proper_name_file_input(proper_filename_prefix, proper_filename_suffix)
 
 if file:
-    if file.name != proper_filename:
-        st.write(f"Invalid filename (Expected {proper_filename}). QA check is available on the other page.")
-
     df = common.read_csv(file)
 
-    st.subheader("File Summary")
+    st.header("File Summary")
     st.text(ScrapingUrlsSummary(df).summarize_all())
 
-    st.subheader("File Checks")
+    st.header("File Checks")
     for column_check_result in FromFileColumnsChecker(df).check_all():
         message_header = f"{column_check_result.column_name}: {column_check_result.message}"
         if column_check_result.is_success:

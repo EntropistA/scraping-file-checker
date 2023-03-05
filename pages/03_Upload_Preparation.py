@@ -18,9 +18,9 @@ SCRAPING_URLS_HEADERS_ORDER = ['Date',
                                'Brand'
                                ]
 
-st.header("Upload Preparation")
+st.title("Upload Preparation")
 
-file = st.file_uploader("Upload single file containing all brands", type=[".csv"])
+file = common.check_proper_name_file_input("output_concatenated", "csv")
 
 
 def get_duplicates_message(duplicate_number: int) -> str:

@@ -3,11 +3,20 @@ from abc import abstractmethod
 from collections import Counter, namedtuple
 from datetime import datetime
 from typing import Iterator
+from urllib.parse import urlparse
 
 import pandas as pd
 import validators
 
-import common
+ALLOWED_PRICE_UNITS = {'L', 'M2', 'Skiva', 'Styck', 'Pallet', 'Paket', 'Säck', 'Storsäck', 'KG'}
+
+
+def is_valid_price_unit(unit):
+    return unit in ALLOWED_PRICE_UNITS
+
+
+def get_domain(url: str) -> str:
+    return urlparse(url).netloc
 
 
 class ScrapingDataFrame:
@@ -17,7 +26,7 @@ class ScrapingDataFrame:
 
 class ScrapingUrlsSummary(ScrapingDataFrame):
     def _get_domain_counter(self):
-        domain_list = self.scraping_df["URL"].apply(common.get_domain).to_list()
+        domain_list = self.scraping_df["URL"].apply(get_domain).to_list()
         counter = Counter(domain_list)
         sorted_counter = dict(counter.most_common(len(counter)))
         return sorted_counter
@@ -29,10 +38,10 @@ class ScrapingUrlsSummary(ScrapingDataFrame):
         return summary
 
     def _get_category_unique_value_list(self) -> {str: list}:
-        category_column_list = "Brand Category Origin Currency".split()
-        return {category: self.scraping_df[category].unique() for category in category_column_list}
+        category_column_list = "Brand Category Origin Currency Price_unit Competitor Customer_name".split()
+        return {category: sorted(self.scraping_df[category].unique()) for category in category_column_list}
 
-    def _summarize_category_columns(self) -> str:
+    def _summarize_descriptive_columns(self) -> str:
         summary = ""
         for category, value_list in self._get_category_unique_value_list().items():
             summary += f"{category}: {', '.join(value_list)}\n"
@@ -40,8 +49,8 @@ class ScrapingUrlsSummary(ScrapingDataFrame):
 
     def summarize_all(self):
         summary_section_mapping = {
-            "Domain": self._summarize_domain,
-            "Category Columns": self._summarize_category_columns
+            "Domain Count": self._summarize_domain,
+            "Category Columns": self._summarize_descriptive_columns
         }
         summarization = ""
         for summary_name, summary in summary_section_mapping.items():
@@ -67,14 +76,14 @@ class Checker(ScrapingDataFrame):
 
     def get_column_check_result(self, column_name, validation_function) -> ColumnCheckResult:
         for row_index, value in enumerate(self.scraping_df[column_name].to_list()):
-            location_identifier = f" in row {row_index}; column {column_name}"
+            location_identifier = f" at index ({row_index}, {column_name})"
             if value != value.strip():
                 is_success = False
                 message = "Unnecessary white characters preceding or leading"
             elif not validation_function(value):
-                print("debug", value, len(value), bool(validation_function(value)), validation_function)
+                # print("debug", value, len(value), bool(validation_function(value)), validation_function)
                 is_success = False
-                message = f"Invalid value {value}" if value else f"Blank field"
+                message = f"Invalid value: {value}" if value else f"blank field"
             else:
                 is_success = True
                 message = "Success"
@@ -87,6 +96,53 @@ class Checker(ScrapingDataFrame):
 
 
 class FromFileColumnsChecker(Checker):
+    @staticmethod
+    def is_valid_brand(brand: str) -> bool:
+        return brand.istitle() and brand in "Dalapro Weber Isover Gyproc".split()
+
+    @staticmethod
+    def is_valid_category(category: str) -> bool:
+        return category and all(c.isalpha() or c in "/ -" for c in category)
+
+    @staticmethod
+    def is_valid_origin(origin: str) -> bool:
+        return origin in ["Saint-Gobain", "Competition"]
+
+    @staticmethod
+    def is_valid_currency(currency):
+        return currency == "SEK"
+
+    def is_valid_competitor(self, competitor: str) -> bool:
+        return self._is_valid_text(competitor)
+
+    def is_valid_url(self, url: str) -> bool:
+        row_with_url = self.scraping_df[self.scraping_df["URL"] == url]
+        if row_with_url.shape[0] == 2:
+            column_must_match = self.columns_and_checkers.keys()
+            row_with_url = row_with_url[column_must_match]
+            if row_with_url[0].to_list() != row_with_url[1].to_list():
+                return False
+        return validators.url(url)
+
+    def is_valid_pim_name(self, pim_name: str) -> bool:
+        return pim_name and self._is_valid_text(pim_name)
+
+    @property
+    def columns_and_checkers(self) -> dict:
+        return {
+            "PIM_name": self.is_valid_pim_name,
+            "Origin": self.is_valid_origin,
+            "Competitor": self.is_valid_competitor,
+            "Category": self.is_valid_category,
+            "Price_unit": is_valid_price_unit,
+            "Currency": self.is_valid_currency,
+            "URL": self.is_valid_url,
+            "Brand": self.is_valid_brand,
+        }
+
+
+class ScrapedColumnChecker(Checker):
+
     @staticmethod
     def is_valid_date(date: str) -> bool:
         try:
@@ -103,45 +159,6 @@ class FromFileColumnsChecker(Checker):
         except ValueError:
             return False
 
-    def is_valid_pim_name(self, pim_name: str) -> bool:
-        return pim_name and self._is_valid_text(pim_name)
-
-    @staticmethod
-    def is_valid_origin(origin: str) -> bool:
-        return origin in ["Saint-Gobain", "Competition"]
-
-    def is_valid_competitor(self, competitor: str) -> bool:
-        return self._is_valid_text(competitor)
-
-    @staticmethod
-    def is_valid_category(category: str) -> bool:
-        return category and all(c.isalpha() or c in "/ -" for c in category)
-
-    @staticmethod
-    def is_valid_url(url: str) -> bool:
-        return validators.url(url)
-
-    @staticmethod
-    def is_valid_brand(brand: str) -> bool:
-        return brand.istitle() and brand in "Dalapro Weber Isover Gyproc".split()
-
-    @property
-    def columns_and_checkers(self) -> dict:
-        return {
-            "Date": self.is_valid_date,
-            "Time": self.is_valid_time,
-            "PIM_name": self.is_valid_pim_name,
-            "Origin": self.is_valid_origin,
-            "Competitor": self.is_valid_competitor,
-            "Category": self.is_valid_category,
-            "URL": self.is_valid_url,
-            "Brand": self.is_valid_brand,
-        }
-
-
-class ScrapedColumnChecker(Checker):
-    allowed_units = {'M2', 'Skiva', 'Styck', 'Pallet', 'Paket', 'Säck', 'Storsäck', 'KG'}
-
     def is_valid_name(self, name: str) -> bool:
         return name and self._is_valid_text(name)
 
@@ -154,23 +171,15 @@ class ScrapedColumnChecker(Checker):
             return False
 
     @staticmethod
-    def is_valid_price_unit(unit):
-        return unit in ScrapedColumnChecker.allowed_units
-
-    @staticmethod
-    def is_valid_currency(currency):
-        return currency == "SEK"
-
-    @staticmethod
     def is_valid_article_number(article_number: str):
         return all(c.isdigit() for c in article_number)
 
     @property
     def columns_and_checkers(self):
         return {
+            "Date": self.is_valid_date,
+            "Time": self.is_valid_time,
             "Name": self.is_valid_name,
             "Price": self.is_valid_price,
-            "Price_unit": self.is_valid_price_unit,
-            "Currency": self.is_valid_currency,
             "Article_number": self.is_valid_article_number,
         }
