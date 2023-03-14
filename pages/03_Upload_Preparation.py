@@ -50,7 +50,7 @@ if file:
 
         st.download_button(
             label=f"Download CSV for brand: {brand}",
-            data=brand_filtered.to_csv().encode('utf-8'),
+            data=brand_filtered.to_csv(index=False).encode('utf-8'),
             file_name=f'{brand}.csv',
             mime='text/csv',
         )
