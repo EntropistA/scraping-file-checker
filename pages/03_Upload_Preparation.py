@@ -39,7 +39,7 @@ def get_remaining_rows_message(remaining_rows: int) -> str:
 if file:
     # Subset is needed because Time column may differ
     before_dropping_duplicates = common.read_csv(file)
-    scraping_output_concat = before_dropping_duplicates.drop_duplicates(subset=["URL", "Article_number"])
+    scraping_output_concat = before_dropping_duplicates.drop_duplicates(subset=["URL", "Price_unit"])
 
     row_number_change = before_dropping_duplicates.shape[0] - scraping_output_concat.shape[0]
     st.text(get_duplicates_message(row_number_change) + get_remaining_rows_message(scraping_output_concat.shape[0]))
