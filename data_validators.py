@@ -9,7 +9,15 @@ import pandas as pd
 import validators
 
 ALLOWED_PRICE_UNITS = {'L', 'M2', 'Skiva', 'Styck', 'Pallet', 'Paket', 'Säck', 'Storsäck', 'KG'}
-
+DATABASE_ATTRIBUTES = [
+    'PIM_name',
+    'Origin',
+    'Competitor',
+    'Category',
+    'Currency',
+    'URL',
+    'Brand'
+    ]
 
 def is_valid_price_unit(unit):
     return unit in ALLOWED_PRICE_UNITS
@@ -92,14 +100,15 @@ class Checker(ScrapingDataFrame):
         return ColumnCheckResult(column_name, is_success, message)
 
     def no_mismatch_between_same_url_rows(self):
-        title = "Mismatch between same URL"
         for url in set(self.scraping_df["URL"].to_list()):
             row_with_url = self.scraping_df[self.scraping_df["URL"] == url]
             if row_with_url.shape[0] > 2:
-                raise NotImplementedError(url)
-            if row_with_url.shape[0] == 2:
-                column_must_match = set(self.scraping_df.columns) - set("Date Time Price_unit Price Name".split())
+                yield ColumnCheckResult(column_name="Possible duplicate_found: ", is_success=False, message=url)
+            elif row_with_url.shape[0] == 2:
+                # column_must_match = set(self.scraping_df.columns) - set("Date Time Price_unit Price Name".split())
+                column_must_match = DATABASE_ATTRIBUTES
                 row_with_url = row_with_url[column_must_match]
+                title = "Mismatch between same URL"
                 for v1, v2 in zip(row_with_url.iloc[0].to_list(), row_with_url.iloc[1].to_list()):
                     if v1 != v2:
                         message = f"{url} '{v1}' != '{v2}'"

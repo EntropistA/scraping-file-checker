@@ -3,20 +3,22 @@ import streamlit as st
 import common
 
 ALLOWED_BRANDS = tuple("Dalapro Weber Isover Gyproc".split())
-SCRAPING_URLS_HEADERS_ORDER = ['Date',
-                               'Time',
-                               'PIM_name',
-                               'Origin',
-                               'Competitor',
-                               'Category',
-                               'Name',
-                               'Price',
-                               'Price_unit',
-                               'Currency',
-                               'Article_number',
-                               'URL',
-                               'Brand'
-                               ]
+SCRAPING_URLS_HEADERS_ORDER = [
+    'Date',
+    'Time',
+    'PIM_name',
+    'Origin',
+    'Competitor',
+    'Category',
+    'Name',
+    'Price',
+    'Price_unit',
+    'Currency',
+    'Article_number',
+    'URL',
+    'Brand'
+    ]
+
 
 st.title("Upload Preparation")
 
